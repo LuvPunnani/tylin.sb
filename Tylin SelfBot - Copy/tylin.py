@@ -26,7 +26,7 @@ from pystyle import Center, Colors, Colorate
 import itertools
 
 
-token = 'add token here -TYLIN'
+token = 'ADD UR TOKEN HERE IDIOTS - TYLIN'
 
 YLIN = commands.Bot(command_prefix=".", intents=discord.Intents.all(), self_bot=True, help_command=None)
 
@@ -144,7 +144,7 @@ async def on_ready():
 
     info_box = f"""                                                                             
 ╔═════════════════════════════════════╗
-║             TYLIN                     ║
+║             TYLIN                   ║
 ║          By TYLIN/TYE               ║ 
 ╚═════════════════════════════════════╝
 ╔{border_line}╗
@@ -201,6 +201,31 @@ async def on_message(message):
         except discord.HTTPException as e:
         	pass
 
+    # ────────────────────────────────────────────────
+    #             CHATPACK REPLY MODE LOGIC
+    # ────────────────────────────────────────────────
+    global chatpack_task, chatpack_channel, chatpack_target_user, chatpack_base_delay
+
+    if chatpack_task and not chatpack_task.done():
+        if chatpack_target_user is not None:
+            if message.author.id == chatpack_target_user and message.channel.id == chatpack_channel.id:
+                try:
+                    with open("chatpack.txt", "r", encoding="utf-8") as f:
+                        lines = [line.strip() for line in f if line.strip()]
+                    if lines:
+                        spam_line = random.choice(lines)
+                        await message.reply(f"<@{chatpack_target_user}> {spam_line}", mention_author=True)
+
+                        # Apply same delay logic for replies
+                        variation = max(0.6, chatpack_base_delay * 0.4)
+                        min_d = max(0.7, chatpack_base_delay - variation)
+                        max_d = chatpack_base_delay + variation
+                        await asyncio.sleep(random.uniform(min_d, max_d))
+                except Exception:
+                    pass
+
+    await YLIN.process_commands(message)
+
 
 async def sendmsg(channel_id, message):
     channel = YLIN.get_channel(channel_id)
@@ -219,7 +244,7 @@ async def aptask(channel, apuser, press, delay):
     while ap:
         reply = random.choice(press)
         mentions = " ".join(f"<@{user.id}>" for user in apuser)
-        message = f'# {reply} {mentions} ```{counter}```'
+        message = f'{reply} {mentions} {counter}'
         
         try:
             await channel.send(message)
@@ -239,7 +264,7 @@ async def ap2task(ctx, message):
 
     while ap2:
         try:
-            await channel.send(f"{message} ```{counter}```")
+            await channel.send(f"{message} {counter}")
         except discord.Forbidden:
             continue
         except Exception as e:
@@ -437,12 +462,12 @@ async def stream(ctx, *, statuses_list: str):
 
     if not statusr:
         statusr = True
-        await ctx.send(f"```Set Status to {statuses_list}```", delete_after=3)
+        await ctx.send(f"Set Status to {statuses_list}", delete_after=3)
 
         while statusr:
             await ustream()
     else:
-        await ctx.send(f"```Status rotation is already running!```", delete_after=3)
+        await ctx.send(f"Status rotation is already running!", delete_after=3)
 
 @YLIN.command()
 async def streamoff(ctx):
@@ -902,7 +927,7 @@ async def setpfp(ctx, url: str = None):
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
         "x-debug-options": "bugReporterEnabled",
         "x-discord-locale": "en-US",
-        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWZlcnJpbmdfZG9tYWluX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
+        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
     }
     
     async with aiohttp.ClientSession() as session:
@@ -1009,7 +1034,7 @@ async def stealpfp(ctx, user: discord.Member = None):
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
         "x-debug-options": "bugReporterEnabled",
         "x-discord-locale": "en-US",
-        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWZlcnJpbmdfZG9tYWluX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
+        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
     }
     avatar_format = "gif" if user.is_avatar_animated() else "png"
     avatar_url = str(user.avatar_url_as(format=avatar_format))
@@ -1255,7 +1280,7 @@ async def ar2(ctx, user: discord.User, num_newlines: int = None, *, reply_messag
     ar2users = loadar2()
     
     if num_newlines is not None:
-        repeated_part = (':goat:\n\n') * num_newlines
+        repeated_part = (':cross:\n\n') * num_newlines
         final_reply = repeated_part + reply_message
     else:
         final_reply = reply_message
@@ -1832,6 +1857,96 @@ async def ping(ctx):
     )
     
     await ctx.send(response)
+
+
+# ────────────────────────────────────────────────
+#             CHATPACK – FIXED CUSTOM DELAY + 1.6s DEFAULT
+# ────────────────────────────────────────────────
+
+chatpack_task = None
+chatpack_channel = None
+chatpack_target_user = None
+chatpack_base_delay = 1.6  # default when no custom delay is given
+
+
+@YLIN.command(name="chatpack")
+async def chatpack(ctx, *args):
+    global chatpack_task, chatpack_channel, chatpack_target_user, chatpack_base_delay
+
+    await ctx.message.delete()
+
+    if chatpack_task is not None and not chatpack_task.done():
+        return
+
+    member = None
+    custom_delay = None
+
+    for arg in args:
+        if '<@' in arg or arg.startswith('@'):
+            try:
+                member = await commands.MemberConverter().convert(ctx, arg)
+                continue
+            except:
+                pass
+
+        try:
+            delay_val = float(arg)
+            if delay_val > 0:
+                custom_delay = delay_val
+        except ValueError:
+            pass
+
+    if custom_delay is not None:
+        chatpack_base_delay = custom_delay
+    else:
+        chatpack_base_delay = 1.6
+
+    try:
+        with open("chatpack.txt", "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+    except Exception:
+        return
+
+    if not lines:
+        return
+
+    chatpack_channel = ctx.channel
+    chatpack_target_user = member.id if member else None
+
+    variation = max(0.6, chatpack_base_delay * 0.4)
+    min_d = max(0.7, chatpack_base_delay - variation)
+    max_d = chatpack_base_delay + variation
+
+    async def chatpack_loop():
+        i = 0
+        while True:
+            try:
+                if chatpack_target_user is None:
+                    await chatpack_channel.send(lines[i % len(lines)])
+                    i += 1
+                    await asyncio.sleep(random.uniform(min_d, max_d))
+                else:
+                    await asyncio.sleep(8)
+            except Exception:
+                await asyncio.sleep(4)
+
+    chatpack_task = YLIN.loop.create_task(chatpack_loop())
+
+
+@YLIN.command(name="stopchatpack")
+async def stopchatpack(ctx):
+    global chatpack_task, chatpack_channel, chatpack_target_user, chatpack_base_delay
+
+    await ctx.message.delete()
+
+    if chatpack_task is None or chatpack_task.done():
+        return
+
+    chatpack_task.cancel()
+    chatpack_task = None
+    chatpack_channel = None
+    chatpack_target_user = None
+    chatpack_base_delay = 1.6
 
 
 YLIN.loop.create_task(artask())
