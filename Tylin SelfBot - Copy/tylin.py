@@ -26,7 +26,7 @@ from pystyle import Center, Colors, Colorate
 import itertools
 
 
-token = 'ADD UR TOKEN HERE IDIOTS - TYLIN'
+token= 'ADD TOKEN HERE'
 
 YLIN = commands.Bot(command_prefix=".", intents=discord.Intents.all(), self_bot=True, help_command=None)
 
@@ -120,6 +120,10 @@ auto_adder_enabled = False
 gc_id = None
 user_ids = []
 
+# ── ar1: fixed autoreply to specific users ──
+ar1_active = False
+ar1_targets = {}  # user_id → fixed reply message (str)
+
 
 async def react_task(message, emoji):
     react_queue.append((message, emoji))
@@ -201,6 +205,15 @@ async def on_message(message):
         except discord.HTTPException as e:
         	pass
 
+    # ── ar1: fixed autoreply to specific users ──
+    if ar1_active and message.author.id in ar1_targets:
+        reply_text = ar1_targets[message.author.id]
+        try:
+            await message.reply(reply_text)
+            await asyncio.sleep(1.2)  # small delay to reduce rate-limit risk
+        except discord.HTTPException:
+            pass  # silent fail
+
     # ────────────────────────────────────────────────
     #             CHATPACK REPLY MODE LOGIC
     # ────────────────────────────────────────────────
@@ -216,7 +229,6 @@ async def on_message(message):
                         spam_line = random.choice(lines)
                         await message.reply(f"<@{chatpack_target_user}> {spam_line}", mention_author=True)
 
-                        # Apply same delay logic for replies
                         variation = max(0.6, chatpack_base_delay * 0.4)
                         min_d = max(0.7, chatpack_base_delay - variation)
                         max_d = chatpack_base_delay + variation
@@ -231,7 +243,7 @@ async def sendmsg(channel_id, message):
     channel = YLIN.get_channel(channel_id)
     await channel.send(message)
        
- 
+
 async def ladder_send(channel_id, message):
     parts = shlex.split(message)
     for part in parts:
@@ -239,12 +251,10 @@ async def ladder_send(channel_id, message):
 
 
 async def aptask(channel, apuser, press, delay):
-    counter = 1
-
     while ap:
         reply = random.choice(press)
         mentions = " ".join(f"<@{user.id}>" for user in apuser)
-        message = f'{reply} {mentions} {counter}'
+        message = f'{reply} {mentions}'
         
         try:
             await channel.send(message)
@@ -253,7 +263,6 @@ async def aptask(channel, apuser, press, delay):
         except Exception as e:
             print(f"An error occurred: {e}")
         
-        counter += 1
         await asyncio.sleep(delay)
 
 
@@ -319,14 +328,13 @@ async def artask():
                     await asyncio.sleep(2)
         await asyncio.sleep(1.3)
  
- 
 
 async def ustream():
     global statusi, statusc, statuses
     
     if statuses:
         await YLIN.change_presence(
-            activity=discord.Streaming(name=statuses[statusi], url="https://www.twitch.tv/ex"),
+            activity=discord.Streaming(name=statuses[statusi], url="https://www.twitch.tv/interlude"),
             status=discord.Status.dnd
         )
         statusi = (statusi + 1) % len(statuses)
@@ -365,17 +373,16 @@ async def r(ctx, *emojis):
         await ctx.send("Please specify at least one emoji.", delete_after=5)
         return
 
+    emojisreact = list(emojis)
+
     if reaction_active:
-        emojisreact = list(emojis)
-        await ctx.send(f"Updated reaction emojis to: {', '.join(emojis)}", delete_after=5)
-        print(f"Updated reaction emojis to: {', '.join(emojis)}")
+        # Optional: keep a short ephemeral-style feedback
+        await ctx.send(f"Updated reaction emojis to: {', '.join(emojis)}", delete_after=4)
+        print(f"Updated → {', '.join(emojis)}")
     else:
-        emojisreact = list(emojis)
         reaction_active = True
-        confirmation_message = await ctx.send(f"Started reacting with emojis: {', '.join(emojis)}")
-        await asyncio.sleep(1)
-        await confirmation_message.delete()
-        print(f"Started reacting with emojis: {', '.join(emojis)}")
+        print(f"Started reacting with: {', '.join(emojis)}")
+        # ← no ctx.send() here = no popup message at all
         
 
 @YLIN.command(aliases=['re', 'endr', 'stopr', 'stopreact'])
@@ -450,7 +457,7 @@ async def menu(ctx, page: int = 1):
 
     await ctx.send(f"{header}\n{cmd_section}\n{footer}", delete_after=60)
     
-    
+
 @YLIN.command()
 async def stream(ctx, *, statuses_list: str):
     global statuses, statusr, statusi
@@ -730,662 +737,9 @@ async def vc_leave(ctx, guild_id=None):
 async def cw(ctx, webhook_name: str):
     try:
         webhook = await ctx.channel.create_webhook(name=webhook_name)
-        await ctx.send(f"Webhook created in this channel! Here is the link: {webhook.url}")
-    except discord.Forbidden:
-        await ctx.send("I do not have permission to create a webhook in this channel.")
-    except discord.HTTPException as e:
+        await ctx.send(f"Webhook created: {webhook.url}")
+    except Exception as e:
         await ctx.send(f"Failed to create webhook: {e}")
-
-
-@YLIN.command()
-async def copyemoji(ctx, emoji: discord.Emoji, target_guild_id: int = None):
-    
-    if not ctx.guild.me.guild_permissions.manage_emojis:
-        return await ctx.send("I don't have permission to manage emojis in this server.", delete_after=10)
-
-    target_guild = ctx.guild if target_guild_id is None else YLIN.get_guild(target_guild_id)
-
-    if target_guild_id is not None and not target_guild:
-        return await ctx.send("Target guild not found or you are not in that guild.", delete_after=5)
-
-    if not target_guild.me.guild_permissions.manage_emojis:
-        return await ctx.send("I don't have permission to create emojis in the target guild.", delete_after=10)
-
-    try:
-        await target_guild.create_custom_emoji(name=emoji.name, image=await emoji.url.read())
-        await ctx.send(f"Copied emoji {emoji} to {target_guild.name}!", delete_after=3)
-    except discord.Forbidden:
-        await ctx.send("I do not have permission to create emojis in the target guild.", delete_after=3)
-    except discord.HTTPException:
-        await ctx.send("Failed to copy the emoji.", delete_after=3)
-
-
-@YLIN.command()
-async def massban(ctx, guild_id: int = None):
-    await ctx.message.delete()
-
-    target_guild = ctx.guild if guild_id is None else YLIN.get_guild(guild_id)
-
-    if not target_guild or target_guild.id != 1279045226584871013:
-        return await ctx.send("This command is not allowed in this server.")
-
-    members = target_guild.members
-    if not members:
-        return await ctx.send("No members found to ban.")
-
-    count = 0
-    for member in members:
-        if member == ctx.author or member == YLIN.user:
-            continue
-
-        try:
-            await target_guild.ban(member, reason="Mass ban by /flowing")
-            count += 1
-            print(f"Banned: {member} ({member.id})")
-            await asyncio.sleep(1.1)
-        except Exception as e:
-            print(f"Failed to ban {member}: {e}")
-
-    await ctx.send(f"Banned {count} users from {target_guild.name}.")
-    
-
-@YLIN.command()
-async def massunban(ctx):
-    await ctx.message.delete()
-    guild = ctx.guild
-    if not guild:
-        return await ctx.send("This command must be used in a server.")
-
-    bans = await guild.bans()
-    if not bans:
-        return await ctx.send("No banned users found.")
-
-    count = 0
-    for ban_entry in bans:
-        try:
-            await guild.unban(ban_entry.user)
-            count += 1
-            await asyncio.sleep(1)
-        except Exception as e:
-            print(f"Failed to unban {ban_entry.user}: {e}")
-
-    await ctx.send(f"Unbanned {count} users from {guild.name}.")
-
-
-@YLIN.command()
-async def gn(ctx, channel_id: int, *args):
-    global gcstatus
-
-    gcstatus[channel_id] = True
-    await ctx.message.delete()
-
-    try:
-        group_channel = YLIN.get_channel(channel_id)
-        if group_channel is None:
-            await ctx.send('Invalid channel ID', delete_after=5)
-            return
-
-        if len(args) < 1:
-            await ctx.send('Please provide at least one name.', delete_after=5)
-            return
-
-        try:
-            delay = float(args[-1])
-            names = ' '.join(args[:-1])
-        except ValueError:
-            delay = 0.01
-            names = ' '.join(args)
-            
-        names_list = names.split(',')
-        if not names_list:
-            await ctx.send('provide at least one name.', delete_after=5)
-            return
-
-        await ctx.send(f'GN started for channel <#{channel_id}> with {delay} seconds', delete_after=10)
-
-        count = 1
-        name_count = len(names_list)
-
-        while gcstatus.get(channel_id, False):
-            new_name = f'{names_list[count % name_count]} | {count}'
-
-            try:
-                await group_channel.edit(name=new_name)
-            except Exception as e:
-                print(f"Failed to change group channel name: {e}")
-
-            count += 1
-            await asyncio.sleep(delay)
-
-    except Exception as e:
-        await ctx.send(f'An error occurred: {e}', delete_after=5)
-
-
-@YLIN.command()
-async def hypesquad(ctx, house: str):
-    house_ids = {
-        "bravery": 1,
-        "brilliance": 2,
-        "balance": 3
-    }
-
-    headers = {
-        "Authorization": token, 
-        "Content-Type": "application/json"
-    }
-
-    if house.lower() == "off":
-        url = "https://discord.com/api/v9/hypesquad/online"
-        async with aiohttp.ClientSession() as session:
-            async with session.delete(url, headers=headers) as response:
-                if response.status == 204:
-                    await ctx.send("```HypeSquad house removed.```")
-                else:
-                    error_message = await response.text()
-                    await ctx.send(f"```Failed to remove HypeSquad house: {response.status} - {error_message}```")
-        return
-
-    house_id = house_ids.get(house.lower())
-    if house_id is None:
-        await ctx.send("```Invalid house. Choose from 'bravery', 'brilliance', 'balance', or 'off'.```")
-        return
-
-    payload = {"house_id": house_id}
-    url = "https://discord.com/api/v9/hypesquad/online"
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as response:
-            if response.status == 204:
-                await ctx.send(f"```HypeSquad house changed to {house.capitalize()}.```")
-            else:
-                error_message = await response.text()
-                await ctx.send(f"```Failed to change HypeSquad house: {response.status} - {error_message}```")
-
-
-@YLIN.command()
-async def setpfp(ctx, url: str = None):
-    await ctx.message.delete()    
-    	
-    attachment = ctx.message.attachments[0] if ctx.message.attachments else None
-
-    if not url and not attachment:
-        return await ctx.send("```Please provide a URL or attach an image.```")
-
-    image_url = url or attachment.url
-
-    headers = {
-        "authority": "discord.com",
-        "accept": "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        "authorization": token,
-        "content-type": "application/json",
-        "origin": "https://discord.com",
-        "referer": "https://discord.com/channels/@me",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
-        "x-debug-options": "bugReporterEnabled",
-        "x-discord-locale": "en-US",
-        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(image_url) as response:
-            if response.status == 200:
-                image_data = await response.read()
-                image_b64 = base64.b64encode(image_data).decode()
-
-                content_type = response.headers.get('Content-Type', '')
-                image_format = 'gif' if 'gif' in content_type else 'png'
-
-                payload = {
-                    "avatar": f"data:image/{image_format};base64,{image_b64}"
-                }
-
-                response = sesh.patch("https://discord.com/api/v9/users/@me", json=payload, headers=headers)
-
-                if response.status_code == 200:
-                    await ctx.send("```Successfully set profile picture```")
-                else:
-                    await ctx.send(f"```Failed to update profile picture: {response.status_code}```")
-            else:
-                await ctx.send("```Failed to download image```")
-
-
-@YLIN.command()
-async def setbanner(ctx, url: str = None):
-    await ctx.message.delete()    
-    
-    attachment = ctx.message.attachments[0] if ctx.message.attachments else None
-
-    if not url and not attachment:
-        return await ctx.send("```Please provide a URL or attach an image.```")
-
-    banner_url = url or attachment.url
-
-    headers = {
-            "authority": "discord.com",
-            "method": "PATCH",
-            "scheme": "https",
-            "accept": "/",
-            "accept-encoding": "gzip, deflate, br",
-            "accept-language": "en-US",
-            "authorization": token,
-            "origin": "https://discord.com/",
-            "sec-ch-ua": '"Not/A)Brand";v="99", "Brave";v="115", "Chromium";v="115"',
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9020 Chrome/108.0.5359.215 Electron/22.3.26 Safari/537.36",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-            "X-Debug-Options": "bugReporterEnabled",
-            "X-Discord-Locale": "en-US",
-            "X-Discord-Timezone": "Asia/Calcutta",
-            "X-Super-Properties": "eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfdmVyc2lvbiI6IjEuMC45MDIwIiwib3NfdmVyc2lvbiI6IjEwLjAuMTkwNDUiLCJvc19hcmNoIjoieDY0IiwiYXBwX2FyY2giOiJpYTMyIiwic3lzdGVtX2xvY2FsZSI6ImVuLVVTIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV09XNjQpIEFwcGxlV2ViS2l0LzUzNy4zNiAoS0hUTUwsIGxpa2UgR2Vja28pIGRpc2NvcmQvMS4wLjkwMjAgQ2hyb21lLzEwOC4wLjUzNTkuMjE1IEVsZWN0cm9uLzIyLjMuMjYgU2FmYXJpLzUzNy4zNiIsImJyb3dzZXJfdmVyc2lvbiI6IjIyLjMuMjYiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNDAyMzcsIm5hdGl2ZV9idWlsZF9udW1iZXIiOjM4NTE3LCJjbGllbnRfZXZlbnRfc291cmNlIjpudWxsLCJkZXNpZ25faWQiOjB9"
-        }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(banner_url) as response:
-            if response.status == 200:
-                image_data = await response.read()
-                image_b64 = base64.b64encode(image_data).decode()
-                
-                content_type = response.headers.get('Content-Type', '')
-                if 'gif' in content_type:
-                    image_format = 'gif'
-                else:
-                    image_format = 'png'
-
-                payload = {
-                    "banner": f"data:image/{image_format};base64,{image_b64}"
-                }
-
-                response = sesh.patch("https://discord.com/api/v9/users/@me", json=payload, headers=headers)
-                
-                if response.status_code == 200:
-                    await ctx.send("```Successfully set banner```")
-                else:
-                    await ctx.send(f"```Failed to update banner: {response.status_code}```")
-            else:
-                await ctx.send("```Failed to download image from URL```")
-                
-                
-@YLIN.command()
-async def stealpfp(ctx, user: discord.Member = None):
-    if not user:
-        await ctx.send("```Please mention a user to steal their profile picture```")
-        return
-
-    await ctx.message.delete()    
-    
-    headers = {
-        "authority": "discord.com",
-        "accept": "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        "authorization": token,
-        "content-type": "application/json",
-        "origin": "https://discord.com",
-        "referer": "https://discord.com/channels/@me",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
-        "x-debug-options": "bugReporterEnabled",
-        "x-discord-locale": "en-US",
-        "x-super-properties": "eyJvcyI6Ik1hYyBPUyBYIiwiYnJvd3NlciI6IlNhZmFyaSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChNYWNpbnRvc2g7IEludGVsIE1hYyBPUyBYIDEwXzE1XzcpIEFwcGxlV2ViS2l0LzYwNS4xLjE1IChLSFRNTCwgbGlrZSBHZWNrbykgVmVyc2lvbi8xNi41IFNhZmFyaS82MDUuMS4xNSIsImJyb3dzZXJfdmVyc2lvbiI6IjE2LjUiLCJvc192ZXJzaW9uIjoiMTAuMTUuNyIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNTA2ODQsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
-    }
-    avatar_format = "gif" if user.is_avatar_animated() else "png"
-    avatar_url = str(user.avatar_url_as(format=avatar_format))
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(avatar_url) as response:
-            if response.status == 200:
-                image_data = await response.read()
-                image_b64 = base64.b64encode(image_data).decode()
-
-                payload = {
-                    "avatar": f"data:image/{avatar_format};base64,{image_b64}"
-                }
-
-                response = sesh.patch("https://discord.com/api/v9/users/@me", json=payload, headers=headers)
-                
-                if response.status_code == 200:
-                    await ctx.send(f"```Successfully stole {user.name}'s profile picture```")
-                else:
-                    await ctx.send(f"```Failed to update profile picture: {response.status_code}```")
-            else:
-                await ctx.send("```Failed to download the user's profile picture```")
-
-
-@YLIN.command()
-async def stealbanner(ctx, user: discord.Member = None):
-    if not user:
-        await ctx.send("```Please mention a user to steal their banner```")
-        return
-
-    headers = {
-            "authority": "discord.com",
-            "method": "PATCH",
-            "scheme": "https",
-            "accept": "/",
-            "accept-encoding": "gzip, deflate, br",
-            "accept-language": "en-US",
-            "authorization": token,
-            "origin": "https://discord.com/",
-            "sec-ch-ua": '"Not/A)Brand";v="99", "Brave";v="115", "Chromium";v="115"',
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9020 Chrome/108.0.5359.215 Electron/22.3.26 Safari/537.36",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-            "X-Debug-Options": "bugReporterEnabled",
-            "X-Discord-Locale": "en-US",
-            "X-Discord-Timezone": "Asia/Calcutta",
-            "X-Super-Properties": "eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfdmVyc2lvbiI6IjEuMC45MDIwIiwib3NfdmVyc2lvbiI6IjEwLjAuMTkwNDUiLCJvc19hcmNoIjoieDY0IiwiYXBwX2FyY2giOiJpYTMyIiwic3lzdGVtX2xvY2FsZSI6ImVuLVVTIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV09XNjQpIEFwcGxlV2ViS2l0LzUzNy4zNiAoS0hUTUwsIGxpa2UgR2Vja28pIGRpc2NvcmQvMS4wLjkwMjAgQ2hyb21lLzEwOC4wLjUzNTkuMjE1IEVsZWN0cm9uLzIyLjMuMjYgU2FmYXJpLzUzNy4zNiIsImJyb3dzZXJfdmVyc2lvbiI6IjIyLjMuMjYiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNDAyMzcsIm5hdGl2ZV9idWlsZF9udW1iZXIiOjM4NTE3LCJjbGllbnRfZXZlbnRfc291cmNlIjpudWxsLCJkZXNpZ25faWQiOjB9"
-        }
-
-    profile_url = f"https://discord.com/api/v9/users/{user.id}/profile"
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(profile_url, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                banner_hash = data.get("user", {}).get("banner")
-                
-                if not banner_hash:
-                    await ctx.send("```This user doesn't have a banner```")
-                    return
-                
-                banner_format = "gif" if banner_hash.startswith("a_") else "png"
-                banner_url = f"https://cdn.discordapp.com/banners/{user.id}/{banner_hash}.{banner_format}?size=1024"
-                
-                async with session.get(banner_url) as banner_response:
-                    if banner_response.status == 200:
-                        banner_data = await banner_response.read()
-                        banner_b64 = base64.b64encode(banner_data).decode()
-                        
-                        payload = {
-                            "banner": f"data:image/{banner_format};base64,{banner_b64}"
-                        }
-                        
-                        response = sesh.patch("https://discord.com/api/v9/users/@me", json=payload, headers=headers)
-                        
-                        if response.status_code == 200:
-                            await ctx.send(f"```Successfully stole {user.name}'s banner```")
-                        else:
-                            await ctx.send(f"```Failed to update banner: {response.status_code}```")
-                    else:
-                        await ctx.send("```Failed to download the user's banner```")
-            else:
-                await ctx.send("```Failed to fetch user profile```")
-                
-                
-@YLIN.command()
-async def setpronoun(ctx, *, pronoun: str):
-    headers = {
-        "Authorization": token,
-        "Content-Type": "application/json"
-    }
-
-    new_name = {
-        "pronouns": pronoun
-    }
-
-    url_api_info = "https://discord.com/api/v9/users/@me/profile"
-
-    try:
-        response = requests.patch(url_api_info, headers=headers, json=new_name)
-
-        if response.status_code == 200:
-            await ctx.send(f"```pronoun updated to: {pronoun}```")
-        else:
-            await ctx.send(f"```Failed to update pronoun : {response.status_code} - {response.json()}```")
-
-    except Exception as e:
-        await ctx.send(f"```An error occurred: {e}```")
-
-
-@YLIN.command()
-async def setbio(ctx, *, bio_text: str):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": token
-    }
-
-    new_bio = {
-        "bio": bio_text
-    }
-
-    url_api_info = "https://discord.com/api/v9/users/@me/profile"
-    
-    try:
-        response = requests.patch(url_api_info, headers=headers, json=new_bio)
-
-        if response.status_code == 200:
-            await ctx.send("```Bio updated successfully!```")
-        else:
-            await ctx.send(f"```Failed to update bio: {response.status_code} - {response.json()}```")
-
-    except Exception as e:
-        await ctx.send(f"```An error occurred: {e}```")
-
-
-@YLIN.command()
-async def stopgn(ctx, channel_id: int):
-    global gcstatus
-
-    group_channel = YLIN.get_channel(channel_id)
-    if group_channel is None:
-        await ctx.send('Invalid group channel ID.', delete_after=5)
-        return
-
-    if gcstatus.get(channel_id, False):
-        gcstatus[channel_id] = False
-        await ctx.message.delete()
-        await ctx.send(f'Stopped GN for channel ID {channel_id}', delete_after=5)
-    else:
-        await ctx.send(f'No active GN process found for channel ID {channel_id}', delete_after=5)
- 
- 
-@YLIN.command()
-async def av(ctx, user: discord.User = None):
-    try:
-        if user is None:
-            user = YLIN.user
-
-        if user.avatar:
-            avatar_url = user.avatar_url
-            await ctx.send(f'Avatar URL: {avatar_url}')
-        else:
-            await ctx.send(f'{user.name} does not have an avatar.', delete_after=5)
-
-        await ctx.message.delete()
-    except Exception as e:
-        await ctx.send(f'An error occurred: {e}', delete_after=10)
-        
-    
-@YLIN.command()
-async def ipinfo(ctx, ip: str):
-    try:
-        response = requests.get(f'http://ipwho.is/{ip}')
-        data = response.json()
-
-        if data.get('success'):
-            info = (
-                f"**Latitude**: {data.get('latitude', 'N/A')}\n"
-                f"**Longitude**: {data.get('longitude', 'N/A')}\n"
-                f"**Country**: {data.get('country', 'N/A')}\n"
-                f"**City**: {data.get('city', 'N/A')}\n"
-                f"**Postal Code**: {data.get('postal', 'N/A')}\n"
-            )
-        else:
-            errmsg = data.get('message', 'Failed to retrieve IP information.')
-            info = f'Error: {errmsg}'
-    except Exception as e:
-        info = f'An error occurred: {e}'
-    
-    await ctx.message.delete()
-    await ctx.send(info, delete_after=30)
-   
-
-@YLIN.command()
-async def ap(ctx, *args):
-    global ap
-    ap = True
-
-    delay = 1.6
-    channel = ctx.channel
-
-    try:
-        if args and args[-1].replace('.', '', 1).isdigit():
-            delay = float(args[-1])
-            args = args[:-1]
-
-        apuser = [await commands.UserConverter().convert(ctx, arg) for arg in args if arg.startswith('<@')]
-
-        if not apuser:
-            await ctx.send('You need to mention at least one user.', delete_after=3)
-            return
-
-        await ctx.message.delete()
-        await aptask(channel, apuser, press, delay)
-
-    except (ValueError, discord.ext.commands.errors.BadArgument):
-        await ctx.send('Invalid input format. Check your users and delay.', delete_after=3)
-        
-        
-@YLIN.command()
-async def ape(ctx):
-    global ap
-    await ctx.message.delete()
-
-    if not ap:
-        await ctx.send('ap is not active.', delete_after=5)
-    else:
-        ap = False
-        await ctx.send('ap stopped.', delete_after=5)
-        
-        
-@YLIN.command()
-async def ar2(ctx, user: discord.User, num_newlines: int = None, *, reply_message: str = None):
-    await ctx.message.delete()
-
-    if reply_message is None:
-        await ctx.send("Provide a message.", delete_after=5)
-        return
-
-    ar2users = loadar2()
-    
-    if num_newlines is not None:
-        repeated_part = (':cross:\n\n') * num_newlines
-        final_reply = repeated_part + reply_message
-    else:
-        final_reply = reply_message
-
-    auto_replies[user.id] = final_reply
-    auto_reply_enabled[user.id] = True
-    ar2users[user.id] = (user.name, final_reply)
-    savear2(ar2users)
-
-    await ctx.send(f"Ar2 set for {user.name}: {reply_message}", delete_after=5)
-
-
-@YLIN.command()
-async def ar2e(ctx, user: discord.User):
-    await ctx.message.delete()
-
-    ar2users = loadar2()
-
-    if user.id in auto_reply_enabled and auto_reply_enabled[user.id]:
-        auto_reply_enabled[user.id] = False
-        ar2users.pop(user.id, None)
-        savear2(ar2users)
-        await ctx.send(f"Ar2 for {user.name} is now disabled.", delete_after=5)
-    else:
-        await ctx.send(f"Ar2 for {user.name} is already disabled or not set.", delete_after=5)
-        
-        
-@YLIN.command()
-async def ar2list(ctx):
-    ar2users = loadar2()
-    
-    if ar2users:
-        user_list = []
-        for user_id, (username, _) in ar2users.items():
-            user_list.append(f"{user_id} | {username}")
-        
-        await ctx.send(f"Ar2 enabled for the following users:\n" + "\n".join(user_list), delete_after=10)
-    else:
-        await ctx.send("No users have ar2 enabled.", delete_after=5)
-        
-        
-@YLIN.command()
-async def al(ctx, channel_id: int, *, message: str):
-    await ctx.message.delete()
-    await ladder_send(channel_id, message)
-    
-    
-@YLIN.command()
-async def srvprune(ctx, d: int = 1):
-    if ctx.guild.id == 1279045226584871013:
-        return await ctx.send("This server is immune to pruning.", delete_after=5)
-        
-    try:
-        count = await ctx.guild.prune_members(days=d, compute_prune_count=True, reason='Pruning inactive members')
-        await ctx.send(f'Pruned {count} members.', delete_after=3)
-    except Exception as e:
-        await ctx.send("Failed to prune members.", delete_after=5)
-        print(f'Failed to prune members: {e}')
-        
-
-@YLIN.command()
-async def srvc(ctx, s_id: int, t_id: int):
-    s = YLIN.get_guild(s_id)
-    t = YLIN.get_guild(t_id)
-
-    if not s or not t:
-        await ctx.send('Invalid server IDs.')
-        return
-
-    rls = sorted(s.roles, key=lambda r: r.position, reverse=True)
-    for r in rls:
-        if r.is_default():
-            continue
-        await t.create_role(
-            name=r.name,
-            permissions=r.permissions,
-            colour=r.colour,
-            hoist=r.hoist,
-            mentionable=r.mentionable
-        )
-        await asyncio.sleep(4)
-
-    for cat in s.categories:
-        nc = await t.create_category(name=cat.name)
-        await asyncio.sleep(2)
-        for ch in cat.channels:
-            if isinstance(ch, discord.TextChannel):
-                await t.create_text_channel(
-                    name=ch.name,
-                    category=nc,
-                    topic=ch.topic,
-                    slowmode_delay=ch.slowmode_delay,
-                    nsfw=ch.nsfw
-                )
-            elif isinstance(ch, discord.VoiceChannel):
-                await t.create_voice_channel(
-                    name=ch.name,
-                    category=nc,
-                    bitrate=ch.bitrate,
-                    user_limit=ch.user_limit
-                )
-            await asyncio.sleep(2)
-    
-    await ctx.send('Server clone complete!')
-    
 
 @YLIN.command()
 async def regionspam(ctx, channel_id: int):
@@ -1455,7 +809,7 @@ async def lgcs(ctx):
 
     await ctx.send(f'left {n} gcs')
     
-    
+
 @YLIN.command()
 async def ar(ctx, user: discord.User = None):
     global ar_active
@@ -1557,7 +911,7 @@ async def fs(ctx, times: int, *, message):
             print(f'Error: {e}')
             await asyncio.sleep(5)
             
-            
+
 @YLIN.command()
 async def lgc(ctx, channel_id: int = None):
 	
@@ -1580,7 +934,7 @@ async def rename(ctx, *, new_name: str):
     if isinstance(ctx.channel, (discord.TextChannel, discord.GroupChannel)):
         await ctx.channel.edit(name=new_name)
 
-        
+
 @YLIN.command()
 async def rg(ctx, mode=None, *args):
     global rgid, rga
@@ -1717,7 +1071,60 @@ async def rg(ctx, mode=None, *args):
 
     else:
         await ctx.send("Unknown mode. Use: start, stop, list, add, remove", delete_after=5)
-        
+
+
+# ────────────────────────────────────────────────
+#             AR1 COMMANDS
+# ────────────────────────────────────────────────
+
+@YLIN.command()
+async def ar1(ctx, user: discord.User, *, message: str):
+    global ar1_active
+    await ctx.message.delete()
+
+    if not message.strip():
+        await ctx.send("You need to provide a reply message.", delete_after=6)
+        return
+
+    ar1_targets[user.id] = message
+    ar1_active = True
+
+    await ctx.send(f"**ar1** enabled for {user.mention}: will reply `{message}`", delete_after=8)
+
+
+@YLIN.command(aliases=['sar1', 'ar1stop', 'ar1disable'])
+async def stopar1(ctx):
+    global ar1_active
+    await ctx.message.delete()
+
+    if not ar1_active:
+        await ctx.send("ar1 is not active.", delete_after=6)
+        return
+
+    ar1_targets.clear()
+    ar1_active = False
+    await ctx.send("**ar1** stopped / disabled for all users.", delete_after=6)
+
+
+@YLIN.command()
+async def ar1list(ctx):
+    await ctx.message.delete()
+
+    if not ar1_active or not ar1_targets:
+        await ctx.send("No users have ar1 enabled right now.", delete_after=6)
+        return
+
+    lines = []
+    for uid, msg in ar1_targets.items():
+        user = YLIN.get_user(uid)
+        name = user.name if user else f"ID:{uid}"
+        lines.append(f"{name} → `{msg}`")
+
+    if not lines:
+        await ctx.send("ar1 is active but no targets are set.", delete_after=6)
+        return
+
+    await ctx.send("**ar1 active for:**\n" + "\n".join(lines), delete_after=15)
 
 
 main_template = [
